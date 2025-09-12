@@ -686,7 +686,7 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     # axes
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylim(0, 110)  # <- give headroom for outside labels at r=108
+    ax.set_ylim(0, 130)  # <- give headroom for outside labels at r=108
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
 
