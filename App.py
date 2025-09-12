@@ -686,7 +686,7 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     # axes
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylim(0, 130)  # <- give headroom for outside labels at r=108
+    ax.set_ylim(0, 100)  # <- give headroom for outside labels at r=108
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
 
@@ -712,7 +712,7 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                    color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
 
             if show_genre_labels:
-                r_lbl = max(105, genre_label_radius)  # place outside the ring
+                r_lbl = max(120, genre_label_radius)  # place outside the ring
                 # horizontal label (rotation=0) with small white box for contrast
                 ax.text(center, r_lbl, g,
                         rotation=0, rotation_mode="anchor",
