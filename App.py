@@ -664,10 +664,8 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                   labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
                   show_genre_labels=True, genre_label_radius=108):
     """
-    Draw a radar with lightly shaded genre wedges and OUTSIDE genre labels.
-
-    labels_to_genre: dict {display_label -> genre_name}
-    genre_label_radius: radial position for text (just beyond 100)
+    Radar with lightly-shaded genre wedges and HORIZONTAL genre labels placed
+    outside the plot so they don't overlap metric labels.
     """
     N = len(labels)
     step = 2 * np.pi / N
@@ -681,22 +679,22 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
         B = B_vals.tolist() + B_vals.tolist()[:1]
 
     fig = plt.figure(figsize=(8.8, 8.8))
-    ax = plt.subplot(111, polar=True)
+    ax  = plt.subplot(111, polar=True)
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
 
     # axes
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylim(0, 100)
+    ax.set_ylim(0, 110)  # <- give headroom for outside labels at r=108
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
 
-    # ----- Background wedges + outside genre labels
+    # ----- Background wedges + HORIZONTAL outside labels
     if labels_to_genre and genre_colors:
         genre_seq = [labels_to_genre[l] for l in labels]
 
-        # find contiguous runs of the same genre around the circle
+        # contiguous runs of same genre around the circle
         runs, run_start = [], 0
         for i in range(1, N):
             if genre_seq[i] != genre_seq[i-1]:
@@ -709,24 +707,19 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
             center = start_idx * step + width / 2.0
             color  = genre_colors.get(g, "#999999")
 
-            # fill wedge
+            # wedge fill (stays within 0..100)
             ax.bar([center], [100], width=width, bottom=0,
                    color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
 
-            # label placed slightly outside the ring to avoid metric labels
             if show_genre_labels:
-                r_lbl  = max(105, genre_label_radius)     # keep outside
-                ang_deg = np.degrees(center)
-                if 90 < ang_deg < 270:          # left side -> flip
-                    rot, ha = ang_deg + 180, "right"
-                else:                            # right side
-                    rot, ha = ang_deg, "left"
-
+                r_lbl = max(105, genre_label_radius)  # place outside the ring
+                # horizontal label (rotation=0) with small white box for contrast
                 ax.text(center, r_lbl, g,
-                        rotation=rot, rotation_mode="anchor",
-                        ha=ha, va="center",
+                        rotation=0, rotation_mode="anchor",
+                        ha="center", va="center",
                         fontsize=12, fontweight="bold",
-                        color=color, zorder=20)
+                        color=color, zorder=20, clip_on=False,
+                        bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
 
     # ----- Player polygons
     ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
