@@ -650,9 +650,9 @@ rowA_pct = pct_df.loc[df_group["Player"] == pA, metrics].iloc[0] if pA in df_gro
 rowB_pct = pct_df.loc[df_group["Player"] == pB, metrics].iloc[0] if (pB and pB in df_group["Player"].values) else None
 
 # ------------------------ Radar (genre background + lines + shaded polygons) ---------------------------
-# very light, non-clashing background colors
+# --- very light, non-clashing background colors for genres ---
 GENRE_BG = {
-    "Attacking":    "#3b82f6",  # blue
+    "Attacking":    "#3b82f6",  # blue-ish
     "Possession":   "#10b981",  # green
     "Defensive":    "#f59e0b",  # orange
     "Off The Ball": "#ef4444",  # red
@@ -661,18 +661,22 @@ GENRE_BG = {
 GENRE_ALPHA = 0.08
 
 def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
-                  labels_to_genre=None, genre_colors=None, genre_alpha=0.08):
+                  labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
+                  show_genre_labels=True, genre_label_radius=108):
     """
-    labels: list of metric labels (display form) around the radar
-    A_vals/B_vals: percentile values (0..100)
+    Draw a radar with lightly shaded background wedges by genre.
     labels_to_genre: dict {display_label: genre_name}
     """
+    import numpy as np
+    import matplotlib.pyplot as plt
+
     N = len(labels)
     step = 2 * np.pi / N
     angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
-    angles += angles[:1]
+    angles += angles[:1]  # close loop
 
     A = A_vals.tolist() + A_vals.tolist()[:1]
+    B = None
     if B_vals is not None:
         B = B_vals.tolist() + B_vals.tolist()[:1]
 
@@ -688,9 +692,9 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
 
-    # background wedges by contiguous genre
+    # --- Background wedges by contiguous genre ---
     if labels_to_genre and genre_colors:
-        genre_seq = [labels_to_genre[l] for l in labels]
+        genre_seq = [labels_to_genre[lbl] for lbl in labels]
         runs = []
         run_start = 0
         for i in range(1, N):
@@ -705,12 +709,17 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
             color = genre_colors.get(g, "#999999")
             ax.bar([center], [100], width=width, bottom=0,
                    color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
+            if show_genre_labels:
+                ax.text(center, genre_label_radius, g,
+                        ha="center", va="center",
+                        fontsize=12, fontweight="bold",
+                        color=color)
 
-    # player polygons
+    # --- Player polygons ---
     ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
     ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
 
-    if B_vals is not None:
+    if B is not None:
         ax.plot(angles, B, linewidth=2.5, color="#d62728", label=B_name, zorder=10)
         ax.fill(angles, B, color="#d62728", alpha=0.20, zorder=10)
 
@@ -718,90 +727,39 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     plt.tight_layout()
     return fig
 
-# display labels + mapping back to genre
+# ---------- Build labels & genre mapping ----------
 labels_clean = [m.replace(" per 90", "").replace(", %", " (%)") for m in metrics]
+metric_groups = position_metrics[selected_template]["groups"]  # {metric: genre}
 labels_to_genre = {
-    m.replace(" per 90", "").replace(", %", " (%)"): metric_groups[m]
-    for m in metrics
+    lbl: metric_groups[m] for lbl, m in zip(labels_clean, metrics)
 }
 
-A_pct_vals = rowA_pct.values if rowA_pct is not None else np.zeros(len(labels_clean))
-B_pct_vals = rowB_pct.values if rowB_pct is not None else None
+# ---------- A/B percentile vectors ----------
+A_pct_vals = rowA_pct.values if 'rowA_pct' in locals() and rowA_pct is not None else np.zeros(len(labels_clean))
+B_pct_vals = rowB_pct.values if 'rowB_pct' in locals() and rowB_pct is not None else None
 
-title_left = f"<span style='color:#1f77b4; font-weight:700'>{pA}</span>"
+# ---------- Title ----------
+title_left  = f"<span style='color:#1f77b4; font-weight:700'>{pA}</span>"
 title_right = f"<span style='color:#d62728; font-weight:700'>{pB}</span>" if pB else ""
 vs_word = " vs " if pB else ""
 st.markdown(f"## {title_left}{vs_word}{title_right}", unsafe_allow_html=True)
 
-def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
-                  labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
-                  show_genre_labels=True, genre_label_radius=108):
-    """
-    labels_to_genre: dict {display_label: genre_name}
-    show_genre_labels: print one label per contiguous wedge
-    genre_label_radius: radial position (0..100 scale) for the labels
-    """
-    N = len(labels)
-    step = 2 * np.pi / N
-    angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
-    angles += angles[:1]
+# ---------- Plot ----------
+fig = radar_compare(
+    labels=labels_clean,
+    A_vals=pd.Series(A_pct_vals),
+    B_vals=pd.Series(B_pct_vals) if B_pct_vals is not None else None,
+    A_name=pA,
+    B_name=pB,
+    labels_to_genre=labels_to_genre,
+    genre_colors=GENRE_BG,
+    genre_alpha=GENRE_ALPHA,
+    show_genre_labels=True,
+    genre_label_radius=108
+)
+st.pyplot(fig, use_container_width=True)
 
-    A = A_vals.tolist() + A_vals.tolist()[:1]
-    if B_vals is not None:
-        B = B_vals.tolist() + B_vals.tolist()[:1]
-
-    fig = plt.figure(figsize=(8.8, 8.8))
-    ax = plt.subplot(111, polar=True)
-    ax.set_theta_offset(np.pi / 2)
-    ax.set_theta_direction(-1)
-
-    # axes
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylim(0, 100)
-    ax.set_yticks([20, 40, 60, 80, 100])
-    ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
-
-    # --- Background wedges + (optionally) genre labels
-    if labels_to_genre and genre_colors:
-        genre_seq = [labels_to_genre[l] for l in labels]
-        runs = []
-        run_start = 0
-        for i in range(1, N):
-            if genre_seq[i] != genre_seq[i-1]:
-                runs.append((run_start, i-1, genre_seq[i-1]))
-                run_start = i
-        runs.append((run_start, N-1, genre_seq[-1]))
-
-        for start_idx, end_idx, g in runs:
-            width = (end_idx - start_idx + 1) * step
-            center = start_idx * step + width / 2.0
-            color = genre_colors.get(g, "#999999")
-            # fill wedge
-            ax.bar([center], [100], width=width, bottom=0,
-                   color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
-            # label on top edge
-            if show_genre_labels:
-                ax.text(center, genre_label_radius, g,
-                        ha="center", va="center",
-                        fontsize=12, fontweight="bold",
-                        color=color)
-
-    # player polygons
-    ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
-    ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
-
-    if B_vals is not None:
-        ax.plot(angles, B, linewidth=2.5, color="#d62728", label=B_name, zorder=10)
-    ax.fill(angles, B if B_vals is not None else A,  # avoid matplotlib warning if B is None
-            color="#d62728" if B_vals is not None else (0,0,0,0),
-            alpha=0.20 if B_vals is not None else 0, zorder=10)
-
-    ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.10))
-    plt.tight_layout()
-    return fig
-
-# ------------------------ Diagnostics (optional) ------------------
+# ---------- Diagnostics (optional) ----------
 with st.expander("Percentile diagnostics"):
     st.write(f"Pool size (rows after dedupe): {len(df_group)}  |  Unique players: {df_group['Player'].nunique()}")
     d_metric = st.selectbox("Inspect metric", metrics, key="diag_metric")
