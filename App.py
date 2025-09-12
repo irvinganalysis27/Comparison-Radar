@@ -662,13 +662,14 @@ GENRE_ALPHA = 0.08
 
 def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                   labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
-                  show_genre_labels=True, genre_label_radius=108):
+                  show_genre_labels=True, genre_label_radius=118):
     """
     Draw a radar with lightly shaded background wedges by genre.
-    labels_to_genre: dict {display_label: genre_name}
+    Places genre labels OUTSIDE the chart and pulls metric labels slightly inward.
     """
     import numpy as np
     import matplotlib.pyplot as plt
+    import matplotlib.patheffects as pe
 
     N = len(labels)
     step = 2 * np.pi / N
@@ -692,7 +693,14 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
 
-    # --- Background wedges by contiguous genre ---
+    # Pull metric labels slightly inward to make room for genre labels outside
+    # (negative pad moves them toward the center for polar x-tick labels)
+    try:
+        ax.tick_params(axis='x', pad=-6)
+    except Exception:
+        pass  # safe on older Matplotlib if unsupported
+
+    # --- Background wedges by contiguous genre + OUTSIDE genre labels
     if labels_to_genre and genre_colors:
         genre_seq = [labels_to_genre[lbl] for lbl in labels]
         runs = []
@@ -707,15 +715,22 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
             width = (end_idx - start_idx + 1) * step
             center = start_idx * step + width / 2.0
             color = genre_colors.get(g, "#999999")
+
+            # fill wedge
             ax.bar([center], [100], width=width, bottom=0,
                    color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
-            if show_genre_labels:
-                ax.text(center, genre_label_radius, g,
-                        ha="center", va="center",
-                        fontsize=12, fontweight="bold",
-                        color=color)
 
-    # --- Player polygons ---
+            if show_genre_labels:
+                # Outside the ring so it won't clash with metric labels
+                txt = ax.text(center, genre_label_radius, g,
+                              ha="center", va="center",
+                              fontsize=12, fontweight="bold",
+                              color=color, zorder=15,
+                              clip_on=False)
+                # subtle outline for readability over grid
+                txt.set_path_effects([pe.withStroke(linewidth=2.5, foreground="white", alpha=0.9)])
+
+    # --- Player polygons
     ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
     ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
 
