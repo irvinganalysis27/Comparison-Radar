@@ -700,25 +700,50 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     except Exception:
         pass  # safe on older Matplotlib if unsupported
 
-    # --- Background wedges by contiguous genre + OUTSIDE genre labels
-    if labels_to_genre and genre_colors:
-        genre_seq = [labels_to_genre[lbl] for lbl in labels]
-        runs = []
-        run_start = 0
-        for i in range(1, N):
-            if genre_seq[i] != genre_seq[i-1]:
-                runs.append((run_start, i-1, genre_seq[i-1]))
-                run_start = i
-        runs.append((run_start, N-1, genre_seq[-1]))
+    # --- Background wedges + (optionally) genre labels
+if labels_to_genre and genre_colors:
+    genre_seq = [labels_to_genre[l] for l in labels]
+    runs = []
+    run_start = 0
+    for i in range(1, N):
+        if genre_seq[i] != genre_seq[i-1]:
+            runs.append((run_start, i-1, genre_seq[i-1]))
+            run_start = i
+    runs.append((run_start, N-1, genre_seq[-1]))
 
-        for start_idx, end_idx, g in runs:
-            width = (end_idx - start_idx + 1) * step
-            center = start_idx * step + width / 2.0
-            color = genre_colors.get(g, "#999999")
+    for start_idx, end_idx, g in runs:
+        width = (end_idx - start_idx + 1) * step
+        center = start_idx * step + width / 2.0
+        color = genre_colors.get(g, "#999999")
 
-            # fill wedge
-            ax.bar([center], [100], width=width, bottom=0,
-                   color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
+        # fill the wedge
+        ax.bar(
+            [center], [100], width=width, bottom=0,
+            color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0
+        )
+
+        # ===== better label placement (outside the circle) =====
+        # place slightly outside r=100 to avoid covering metric labels
+        r_lbl = 112                       # try 110–118 if still close on your screen
+        ang_deg = np.degrees(center)
+
+        # rotate tangentially; orient text so it's readable both sides
+        if 90 < ang_deg < 270:
+            # left side of plot
+            rot = ang_deg + 180           # flip text so it's upright
+            ha  = "right"
+        else:
+            # right side of plot
+            rot = ang_deg
+            ha  = "left"
+
+        ax.text(
+            center, r_lbl, g,
+            rotation=rot, rotation_mode="anchor",
+            ha=ha, va="center",
+            fontsize=12, fontweight="bold",
+            color=color, zorder=20,
+        )
 
             if show_genre_labels:
                 # Outside the ring so it won't clash with metric labels
