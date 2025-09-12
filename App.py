@@ -1,4 +1,4 @@
-# app.py — Comparison Radar with genre background shading
+    # app.py — Comparison Radar with genre background shading
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -662,20 +662,19 @@ GENRE_ALPHA = 0.08
 
 def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                   labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
-                  show_genre_labels=True, genre_label_radius=118):
+                  show_genre_labels=True, genre_label_radius=108):
     """
-    Draw a radar with lightly shaded background wedges by genre.
-    Places genre labels OUTSIDE the chart and pulls metric labels slightly inward.
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib.patheffects as pe
+    Draw a radar with lightly shaded genre wedges and OUTSIDE genre labels.
 
+    labels_to_genre: dict {display_label -> genre_name}
+    genre_label_radius: radial position for text (just beyond 100)
+    """
     N = len(labels)
     step = 2 * np.pi / N
-    angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
-    angles += angles[:1]  # close loop
 
+    # angles and closed polygons
+    angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
+    angles += angles[:1]
     A = A_vals.tolist() + A_vals.tolist()[:1]
     B = None
     if B_vals is not None:
@@ -693,69 +692,43 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     ax.set_yticks([20, 40, 60, 80, 100])
     ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
 
-    # Pull metric labels slightly inward to make room for genre labels outside
-    # (negative pad moves them toward the center for polar x-tick labels)
-    try:
-        ax.tick_params(axis='x', pad=-6)
-    except Exception:
-        pass  # safe on older Matplotlib if unsupported
+    # ----- Background wedges + outside genre labels
+    if labels_to_genre and genre_colors:
+        genre_seq = [labels_to_genre[l] for l in labels]
 
-    # --- Background wedges + (optionally) genre labels
-if labels_to_genre and genre_colors:
-    genre_seq = [labels_to_genre[l] for l in labels]
-    runs = []
-    run_start = 0
-    for i in range(1, N):
-        if genre_seq[i] != genre_seq[i-1]:
-            runs.append((run_start, i-1, genre_seq[i-1]))
-            run_start = i
-    runs.append((run_start, N-1, genre_seq[-1]))
+        # find contiguous runs of the same genre around the circle
+        runs, run_start = [], 0
+        for i in range(1, N):
+            if genre_seq[i] != genre_seq[i-1]:
+                runs.append((run_start, i-1, genre_seq[i-1]))
+                run_start = i
+        runs.append((run_start, N-1, genre_seq[-1]))
 
-    for start_idx, end_idx, g in runs:
-        width = (end_idx - start_idx + 1) * step
-        center = start_idx * step + width / 2.0
-        color = genre_colors.get(g, "#999999")
+        for start_idx, end_idx, g in runs:
+            width  = (end_idx - start_idx + 1) * step
+            center = start_idx * step + width / 2.0
+            color  = genre_colors.get(g, "#999999")
 
-        # fill the wedge
-        ax.bar(
-            [center], [100], width=width, bottom=0,
-            color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0
-        )
+            # fill wedge
+            ax.bar([center], [100], width=width, bottom=0,
+                   color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
 
-        # ===== better label placement (outside the circle) =====
-        # place slightly outside r=100 to avoid covering metric labels
-        r_lbl = 112                       # try 110–118 if still close on your screen
-        ang_deg = np.degrees(center)
-
-        # rotate tangentially; orient text so it's readable both sides
-        if 90 < ang_deg < 270:
-            # left side of plot
-            rot = ang_deg + 180           # flip text so it's upright
-            ha  = "right"
-        else:
-            # right side of plot
-            rot = ang_deg
-            ha  = "left"
-
-        ax.text(
-            center, r_lbl, g,
-            rotation=rot, rotation_mode="anchor",
-            ha=ha, va="center",
-            fontsize=12, fontweight="bold",
-            color=color, zorder=20,
-        )
-
+            # label placed slightly outside the ring to avoid metric labels
             if show_genre_labels:
-                # Outside the ring so it won't clash with metric labels
-                txt = ax.text(center, genre_label_radius, g,
-                              ha="center", va="center",
-                              fontsize=12, fontweight="bold",
-                              color=color, zorder=15,
-                              clip_on=False)
-                # subtle outline for readability over grid
-                txt.set_path_effects([pe.withStroke(linewidth=2.5, foreground="white", alpha=0.9)])
+                r_lbl  = max(105, genre_label_radius)     # keep outside
+                ang_deg = np.degrees(center)
+                if 90 < ang_deg < 270:          # left side -> flip
+                    rot, ha = ang_deg + 180, "right"
+                else:                            # right side
+                    rot, ha = ang_deg, "left"
 
-    # --- Player polygons
+                ax.text(center, r_lbl, g,
+                        rotation=rot, rotation_mode="anchor",
+                        ha=ha, va="center",
+                        fontsize=12, fontweight="bold",
+                        color=color, zorder=20)
+
+    # ----- Player polygons
     ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
     ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
 
