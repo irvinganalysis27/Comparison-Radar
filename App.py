@@ -1,22 +1,24 @@
-    # app.py — Comparison Radar with genre background shading
+# app.py — Comparison Radar (centered layout, genre background wedges)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import re
 
+# ------------------------ Page & title ------------------------
 st.set_page_config(page_title="Comparison Radar", layout="centered")
 
-# ------------------------ Basic password ------------------------
 PASSWORD = "cowboy"
 st.title("⚽ Comparison Radar")
 
+# Basic password gate
 pwd = st.text_input("Enter password:", type="password")
 if pwd != PASSWORD:
     st.warning("Please enter the correct password to access the app.")
     st.stop()
 
-# ------------------------ Position groups & mapping -------------------
+# ------------------------ 6-group mapping ------------------------
 SIX_GROUPS = [
     "Goalkeeper",
     "Wide Defender",
@@ -57,15 +59,12 @@ RAW_TO_SIX = {
 }
 
 def _clean_pos_token(tok: str) -> str:
-    if pd.isna(tok):
-        return ""
+    if pd.isna(tok): return ""
     t = str(tok).upper()
-    t = t.replace(".", "").replace("-", "").replace(" ", "")
-    return t
+    return t.replace(".", "").replace("-", "").replace(" ", "")
 
 def parse_first_position(cell) -> str:
-    if pd.isna(cell):
-        return ""
+    if pd.isna(cell): return ""
     first = re.split(r"[,/]", str(cell))[0].strip()
     return _clean_pos_token(first)
 
@@ -73,9 +72,9 @@ def map_first_position_to_group(cell) -> str:
     tok = parse_first_position(cell)
     return RAW_TO_SIX.get(tok, "Wide Midfielder")  # safe default
 
-# ------------------------ Templates (same naming style as your other app) ---
+# ------------------------ Templates (same naming style) ------------------------
 position_metrics = {
-    # ================== GOALKEEPER ==================
+    # GK
     "Goalkeeper": {
         "metrics": [
             "Clean sheets per 90", "Conceded goals per 90", "Prevented goals per 90",
@@ -100,7 +99,7 @@ position_metrics = {
         }
     },
 
-    # ================== CENTRAL DEFENDERS ==================
+    # CENTRAL DEFENDERS
     "Central Defender, Ball Winning": {
         "metrics": [
             "Defensive duels per 90", "Defensive duels won, %",
@@ -168,7 +167,7 @@ position_metrics = {
         }
     },
 
-    # ================== WIDE DEFENDERS ==================
+    # WIDE DEFENDERS
     "Wide Defender, Full Back": {
         "metrics": [
             "Successful defensive actions per 90", "Defensive duels per 90", "Defensive duels won, %",
@@ -239,7 +238,7 @@ position_metrics = {
         }
     },
 
-    # ================== CENTRAL MIDFIELDERS ==================
+    # CENTRAL MIDFIELDERS
     "Central Midfielder, Creative": {
         "metrics": [
             "Non-penalty goals per 90", "xG per 90", "Goal conversion, %",
@@ -320,7 +319,7 @@ position_metrics = {
         }
     },
 
-    # ================== WIDE MIDFIELDERS ==================
+    # WIDE MIDs
     "Wide Midfielder, Touchline Winger": {
         "metrics": [
             "Non-penalty goals per 90", "xG per 90", "Assists per 90", "xA per 90",
@@ -396,7 +395,7 @@ position_metrics = {
         }
     },
 
-    # ================== STRIKERS ==================
+    # STRIKERS
     "Striker, Number 10": {
         "metrics": [
             "Successful defensive actions per 90",
@@ -522,26 +521,21 @@ position_metrics = {
     }
 }
 
-# Map template -> 6-group so we can gate templates shown per group
+# Gate templates by 6-group
 TEMPLATE_TO_GROUP = {
     "Goalkeeper": "Goalkeeper",
-
     "Central Defender, Ball Winning": "Central Defender",
     "Central Defender, Ball Playing": "Central Defender",
     "Central Defender, All Round": "Central Defender",
-
     "Wide Defender, Full Back": "Wide Defender",
     "Wide Defender, Wing Back": "Wide Defender",
     "Wide Defender, Inverted": "Wide Defender",
-
     "Central Midfielder, Creative": "Central Midfielder",
     "Central Midfielder, Defensive": "Central Midfielder",
     "Central Midfielder, All Round CM": "Central Midfielder",
-
     "Wide Midfielder, Touchline Winger": "Wide Midfielder",
     "Wide Midfielder, Inverted Winger": "Wide Midfielder",
     "Wide Midfielder, Defensive Wide Midfielder": "Wide Midfielder",
-
     "Striker, Number 10": "Central Forward",
     "Striker, Target Man": "Central Forward",
     "Striker, Penalty Box Striker": "Central Forward",
@@ -549,14 +543,14 @@ TEMPLATE_TO_GROUP = {
     "Striker, Pressing Forward": "Central Forward",
 }
 
-# ------------------------ Upload & base dataframe --------------------------
+# ------------------------ Upload & base dataframe ------------------------
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 if not uploaded_file:
     st.stop()
 
 df = pd.read_excel(uploaded_file)
 
-# Normalise helper columns
+# helper columns
 if "Position" in df.columns:
     df["Positions played"] = df["Position"].astype(str)
 else:
@@ -564,7 +558,7 @@ else:
 
 df["Six-Group Position"] = df["Position"].apply(map_first_position_to_group) if "Position" in df.columns else np.nan
 
-# ------------------------ Minutes & Age filters ----------------------------
+# ------------------------ Minutes & Age filters ------------------------
 minutes_col = "Minutes played"
 min_minutes = st.number_input("Minimum minutes to include", min_value=0, value=800, step=50)
 df["_minutes_numeric"] = pd.to_numeric(df.get(minutes_col, np.nan), errors="coerce")
@@ -580,33 +574,30 @@ if "Age" in df.columns:
 
 st.caption(f"Filtered by minutes ≥ {min_minutes}. Players remaining, {len(df)}")
 
-# ------------------------ 6-group choice (drives pool) ---------------------
+# ------------------------ 6-group -> template -> players ------------------------
 group = st.selectbox("Choose a 6-group position", SIX_GROUPS, index=SIX_GROUPS.index("Central Forward"))
 df_group = df[df["Six-Group Position"] == group].copy()
 if df_group.empty:
     st.error("No players in this 6-group after filters.")
     st.stop()
 
-# Collapse to one row per player (keep the most-minutes row)
+# collapse to one row per player (max minutes)
 if "Minutes played" in df_group.columns:
     df_group["_minutes_numeric"] = pd.to_numeric(df_group["Minutes played"], errors="coerce")
     df_group.sort_values("_minutes_numeric", ascending=False, inplace=True)
 df_group = df_group.drop_duplicates(subset=["Player"], keep="first").copy()
 
-# ------------------------ Template choice (restricted to group) ------------
 templates_for_group = [t for t, g in TEMPLATE_TO_GROUP.items() if g == group]
 selected_template = st.selectbox("Choose a position template", templates_for_group, index=0)
 
 metrics = position_metrics[selected_template]["metrics"]
-metric_groups = position_metrics[selected_template]["groups"]  # <-- needed for shading
+metric_groups = position_metrics[selected_template]["groups"]
 
-# Ensure numeric types (NaN allowed; don't fill zeros before ranking)
 for m in metrics:
     if m not in df_group.columns:
         df_group[m] = np.nan
     df_group[m] = pd.to_numeric(df_group[m], errors="coerce")
 
-# ------------------------ Player selectors (from same group) ---------------
 players = df_group["Player"].dropna().unique().tolist()
 if not players:
     st.error("No players available in this group.")
@@ -626,9 +617,9 @@ with c2:
     pB = None if pB == "(none)" else pB
     st.session_state.cmpB = pB
 
-# ------------------------ Percentiles within the group ---------------------
+# ------------------------ Percentiles within the group ------------------------
 LOWER_BETTER = {
-    # Add metrics here if lower values should rank higher (will be inverted before ranking)
+    # Put metrics here where lower is better (they'll be inverted before ranking)
     # "Conceded goals per 90": True,
 }
 
@@ -639,9 +630,9 @@ def compute_percentiles_within_group(metrics_list, group_df):
             bench[m] = np.nan
         bench[m] = pd.to_numeric(bench[m], errors="coerce")
         if LOWER_BETTER.get(m, False):
-            bench[m] = -bench[m]  # invert so higher is always "better"
+            bench[m] = -bench[m]
     raw = bench[metrics_list].copy()
-    pct = (raw.rank(pct=True) * 100.0).round(1)  # pandas ignores NaN in ranking
+    pct = (raw.rank(pct=True) * 100.0).round(1)
     return raw, pct
 
 raw_df, pct_df = compute_percentiles_within_group(metrics, df_group)
@@ -649,10 +640,10 @@ raw_df, pct_df = compute_percentiles_within_group(metrics, df_group)
 rowA_pct = pct_df.loc[df_group["Player"] == pA, metrics].iloc[0] if pA in df_group["Player"].values else None
 rowB_pct = pct_df.loc[df_group["Player"] == pB, metrics].iloc[0] if (pB and pB in df_group["Player"].values) else None
 
-# ------------------------ Radar (genre background + lines + shaded polygons) ---------------------------
-# --- very light, non-clashing background colors for genres ---
+# ------------------------ Radar (genre background + lines) ------------------------
+# Very light (background) colors for genre wedges
 GENRE_BG = {
-    "Attacking":    "#3b82f6",  # blue-ish
+    "Attacking":    "#3b82f6",  # blue
     "Possession":   "#10b981",  # green
     "Defensive":    "#f59e0b",  # orange
     "Off The Ball": "#ef4444",  # red
@@ -663,42 +654,45 @@ GENRE_ALPHA = 0.08
 def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                   labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
                   show_genre_labels=True, genre_label_radius=108):
-    import numpy as np
-    import matplotlib.pyplot as plt
+    # Guard
+    if not labels:
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.axis("off")
+        ax.text(0.5, 0.5, "No metrics to plot", ha="center", va="center")
+        return fig
 
     N = len(labels)
     step = 2 * np.pi / N
 
-    # angles and closed polygons
+    # Angles + closed polygons
     angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
     angles += angles[:1]
-    A = A_vals.tolist() + A_vals.tolist()[:1]
+    A = pd.Series(A_vals).tolist() + pd.Series(A_vals).tolist()[:1]
     B = None
     if B_vals is not None:
-        B = B_vals.tolist() + B_vals.tolist()[:1]
+        B = pd.Series(B_vals).tolist() + pd.Series(B_vals).tolist()[:1]
 
-    # figure / axes
-    fig = plt.figure(figsize=(10, 10))      # gives similar scale to your other app
+    # Figure / axes (match scale of your other app)
+    fig = plt.figure(figsize=(10, 10))
     ax  = plt.subplot(111, polar=True)
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
 
-    # axes styling
+    # Axes styling
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylim(0, 100)
-    ax.set_yticks([20, 40, 60, 80])         # no 100 tick -> avoids outer ring look
+    ax.set_yticks([20, 40, 60, 80])
     ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
     ax.spines["polar"].set_visible(False)
 
-    # breathing room
+    # Breathing room (like the single-player app)
     plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
 
-    # ----- Background wedges + HORIZONTAL outside labels -----
+    # ----- Background wedges + outside labels -----
     if labels_to_genre and genre_colors:
-        genre_seq = [labels_to_genre[lbl] for lbl in labels]
+        genre_seq = [labels_to_genre.get(lbl, "") for lbl in labels]
 
-        # contiguous runs of same genre around the circle
         runs, run_start = [], 0
         for i in range(1, N):
             if genre_seq[i] != genre_seq[i - 1]:
@@ -711,12 +705,11 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
             center = start_idx * step + width / 2.0
             color  = genre_colors.get(g, "#999999")
 
-            # wedge fill (stays within 0..100)
             ax.bar([center], [100], width=width, bottom=0,
                    color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
 
-            if show_genre_labels:
-                r_lbl = max(120, genre_label_radius)  # place outside the ring
+            if show_genre_labels and g:
+                r_lbl = max(120, genre_label_radius)
                 ax.text(center, r_lbl, g,
                         rotation=0, rotation_mode="anchor",
                         ha="center", va="center",
@@ -733,5 +726,73 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
         ax.fill(angles, B, color="#d62728", alpha=0.20, zorder=10)
 
     ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.10))
-    plt.tight_layout()
     return fig
+
+# ---------- Labels & genre mapping ----------
+labels_clean = [m.replace(" per 90", "").replace(", %", " (%)") for m in metrics]
+labels_to_genre = {lbl: metric_groups[m] for lbl, m in zip(labels_clean, metrics)}
+
+# ---------- A/B percentile vectors (with safe fallbacks) ----------
+A_pct_vals = rowA_pct.values if (rowA_pct is not None) else np.zeros(len(labels_clean))
+B_pct_vals = rowB_pct.values if (rowB_pct is not None) else None
+
+# ---------- Title ----------
+title_left  = f"<span style='color:#1f77b4; font-weight:700'>{pA}</span>"
+title_right = f"<span style='color:#d62728; font-weight:700'>{pB}</span>" if pB else ""
+vs_word = " vs " if pB else ""
+st.markdown(f"## {title_left}{vs_word}{title_right}", unsafe_allow_html=True)
+
+# ---------- Plot ----------
+fig = radar_compare(
+    labels=labels_clean,
+    A_vals=A_pct_vals,
+    B_vals=B_pct_vals,
+    A_name=pA,
+    B_name=pB,
+    labels_to_genre=labels_to_genre,
+    genre_colors=GENRE_BG,
+    genre_alpha=GENRE_ALPHA,
+    show_genre_labels=True,
+    genre_label_radius=108
+)
+st.pyplot(fig, use_container_width=True, clear_figure=True)
+
+# ---------- Diagnostics (optional) ----------
+with st.expander("Percentile diagnostics"):
+    st.write(f"Pool size (rows after dedupe): {len(df_group)}  |  Unique players: {df_group['Player'].nunique()}")
+    d_metric = st.selectbox("Inspect metric", metrics, key="diag_metric")
+    s = pd.to_numeric(df_group[d_metric], errors="coerce").dropna().sort_values()
+    if not s.empty:
+        st.write("Min / Median / Max:", float(s.min()), float(s.median()), float(s.max()))
+        def approx_pct(val):
+            return round(100.0 * (s <= val).sum() / len(s), 1)
+        if pA in df_group["Player"].values:
+            vA = float(df_group.loc[df_group["Player"] == pA, d_metric].iloc[0])
+            st.write(f"{pA}: raw={vA}, approx percentile≈{approx_pct(vA)}")
+        if pB and (pB in df_group["Player"].values):
+            vB = float(df_group.loc[df_group["Player"] == pB, d_metric].iloc[0])
+            st.write(f"{pB}: raw={vB}, approx percentile≈{approx_pct(vB)}")
+
+# ---------- Simple ranking table within the chosen group/template ----------
+# Average Z across template metrics for each player in the pool
+z_all = (pct_df[metrics] - 50) / 15.0
+df_rank = df_group.copy()
+df_rank["Avg Z Score"] = z_all.mean(axis=1)
+df_rank["Rank"] = df_rank["Avg Z Score"].rank(ascending=False, method="min").astype(int)
+
+keep_cols = ["Player", "Positions played", "Age", "Team", "Team within selected timeframe", "Minutes played", "Avg Z Score", "Rank"]
+for c in keep_cols:
+    if c not in df_rank.columns:
+        df_rank[c] = np.nan
+
+st.markdown("### Players Ranked by Z-Score (within selected 6-group)")
+tbl = (df_rank[keep_cols]
+       .sort_values(by="Avg Z Score", ascending=False)
+       .reset_index(drop=True))
+tbl[["Team", "Team within selected timeframe"]] = tbl[["Team", "Team within selected timeframe"]].fillna("N/A")
+if "Age" in tbl:
+    tbl["Age"] = tbl["Age"].apply(lambda x: int(x) if pd.notnull(x) else x)
+tbl.index = np.arange(1, len(tbl) + 1)
+tbl.index.name = "Row"
+
+st.dataframe(tbl, use_container_width=True)
