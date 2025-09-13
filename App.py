@@ -662,138 +662,76 @@ GENRE_ALPHA = 0.08
 
 def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                   labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
-                  show_genre_labels=True, genre_label_radius=112):
-    """
-    Radar with lightly-shaded genre wedges and HORIZONTAL genre labels placed
-    outside the plot so they don't overlap metric labels.
-    """
+                  show_genre_labels=True, genre_label_radius=108):
+    import numpy as np
+    import matplotlib.pyplot as plt
+
     N = len(labels)
     step = 2 * np.pi / N
 
-# angles and closed polygons
-angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
-angles += angles[:1]
-A = A_vals.tolist() + A_vals.tolist()[:1]
-B = None
-if B_vals is not None:
-    B = B_vals.tolist() + B_vals.tolist()[:1]
+    # angles and closed polygons
+    angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
+    angles += angles[:1]
+    A = A_vals.tolist() + A_vals.tolist()[:1]
+    B = None
+    if B_vals is not None:
+        B = B_vals.tolist() + B_vals.tolist()[:1]
 
-# figure + polar axes
-fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))  # was (8.8, 8.8)
-ax.set_theta_offset(np.pi / 2)
-ax.set_theta_direction(-1)
+    # figure / axes
+    fig = plt.figure(figsize=(10, 10))      # gives similar scale to your other app
+    ax  = plt.subplot(111, polar=True)
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
 
-# axes / ticks
-ax.set_xticks(angles[:-1])
-ax.set_xticklabels(labels, fontsize=10)
+    # axes styling
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, fontsize=10)
+    ax.set_ylim(0, 100)
+    ax.set_yticks([20, 40, 60, 80])         # no 100 tick -> avoids outer ring look
+    ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
+    ax.spines["polar"].set_visible(False)
 
-ax.set_ylim(0, 100)
-ax.set_yticks([20, 40, 60, 80])                 # no tick at 100 -> no outer ring look
-ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
-ax.spines["polar"].set_visible(False)           # hide circular border
+    # breathing room
+    plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
 
-# give the plot more breathing room like the other app
-plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
+    # ----- Background wedges + HORIZONTAL outside labels -----
+    if labels_to_genre and genre_colors:
+        genre_seq = [labels_to_genre[lbl] for lbl in labels]
 
-# ----- Background wedges + HORIZONTAL outside labels -----
-if labels_to_genre and genre_colors:
-    genre_seq = [labels_to_genre[lbl] for lbl in labels]
+        # contiguous runs of same genre around the circle
+        runs, run_start = [], 0
+        for i in range(1, N):
+            if genre_seq[i] != genre_seq[i - 1]:
+                runs.append((run_start, i - 1, genre_seq[i - 1]))
+                run_start = i
+        runs.append((run_start, N - 1, genre_seq[-1]))
 
-    # contiguous runs of same genre around the circle
-    runs, run_start = [], 0
-    for i in range(1, N):
-        if genre_seq[i] != genre_seq[i - 1]:
-            runs.append((run_start, i - 1, genre_seq[i - 1]))
-            run_start = i
-    runs.append((run_start, N - 1, genre_seq[-1]))
+        for start_idx, end_idx, g in runs:
+            width  = (end_idx - start_idx + 1) * step
+            center = start_idx * step + width / 2.0
+            color  = genre_colors.get(g, "#999999")
 
-    for start_idx, end_idx, g in runs:
-        width  = (end_idx - start_idx + 1) * step
-        center = start_idx * step + width / 2.0
-        color  = genre_colors.get(g, "#999999")
+            # wedge fill (stays within 0..100)
+            ax.bar([center], [100], width=width, bottom=0,
+                   color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
 
-        # wedge fill (stays within 0..100)
-        ax.bar([center], [100], width=width, bottom=0,
-               color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
+            if show_genre_labels:
+                r_lbl = max(120, genre_label_radius)  # place outside the ring
+                ax.text(center, r_lbl, g,
+                        rotation=0, rotation_mode="anchor",
+                        ha="center", va="center",
+                        fontsize=12, fontweight="bold",
+                        color=color, zorder=20, clip_on=False,
+                        bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
 
-        if show_genre_labels:
-            r_lbl = max(120, genre_label_radius)  # place outside the ring
-            # horizontal label with small white box for contrast
-            ax.text(center, r_lbl, g,
-                    rotation=0, rotation_mode="anchor",
-                    ha="center", va="center",
-                    fontsize=12, fontweight="bold",
-                    color=color, zorder=20, clip_on=False,
-                    bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
+    # ----- Player polygons -----
+    ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
+    ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
 
-# ----- Player polygons
-ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
-ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
+    if B is not None:
+        ax.plot(angles, B, linewidth=2.5, color="#d62728", label=B_name, zorder=10)
+        ax.fill(angles, B, color="#d62728", alpha=0.20, zorder=10)
 
-if B is not None:
-    ax.plot(angles, B, linewidth=2.5, color="#d62728", label=B_name, zorder=10)
-    ax.fill(angles, B, color="#d62728", alpha=0.20, zorder=10)
-
-ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.10))
-plt.tight_layout()
-return fig
-
-# ---------- Build labels & genre mapping ----------
-labels_clean = [m.replace(" per 90", "").replace(", %", " (%)") for m in metrics]
-metric_groups = position_metrics[selected_template]["groups"]  # {metric: genre}
-labels_to_genre = {
-    lbl: metric_groups[m] for lbl, m in zip(labels_clean, metrics)
-}
-
-# ---------- A/B percentile vectors ----------
-A_pct_vals = rowA_pct.values if 'rowA_pct' in locals() and rowA_pct is not None else np.zeros(len(labels_clean))
-B_pct_vals = rowB_pct.values if 'rowB_pct' in locals() and rowB_pct is not None else None
-
-# ---------- Title ----------
-title_left  = f"<span style='color:#1f77b4; font-weight:700'>{pA}</span>"
-title_right = f"<span style='color:#d62728; font-weight:700'>{pB}</span>" if pB else ""
-vs_word = " vs " if pB else ""
-st.markdown(f"## {title_left}{vs_word}{title_right}", unsafe_allow_html=True)
-
-# ---------- Plot ----------
-fig = radar_compare(
-    labels=labels_clean,
-    A_vals=pd.Series(A_pct_vals),
-    B_vals=pd.Series(B_pct_vals) if B_pct_vals is not None else None,
-    A_name=pA,
-    B_name=pB,
-    labels_to_genre=labels_to_genre,
-    genre_colors=GENRE_BG,
-    genre_alpha=GENRE_ALPHA,
-    show_genre_labels=True,
-    genre_label_radius=108
-)
-st.pyplot(fig, use_container_width=True)
-
-# ---------- Diagnostics (optional) ----------
-with st.expander("Percentile diagnostics"):
-    st.write(f"Pool size (rows after dedupe): {len(df_group)}  |  Unique players: {df_group['Player'].nunique()}")
-    d_metric = st.selectbox("Inspect metric", metrics, key="diag_metric")
-    s = pd.to_numeric(df_group[d_metric], errors="coerce").dropna().sort_values()
-    if not s.empty:
-        st.write("Min / Median / Max:", float(s.min()), float(s.median()), float(s.max()))
-        def approx_pct(val):
-            return round(100.0 * (s <= val).sum() / len(s), 1)
-        if pA in df_group["Player"].values:
-            vA = float(df_group.loc[df_group["Player"] == pA, d_metric].iloc[0])
-            st.write(f"{pA}: raw={vA}, approx percentile≈{approx_pct(vA)}")
-        if pB and (pB in df_group["Player"].values):
-            vB = float(df_group.loc[df_group["Player"] == pB, d_metric].iloc[0])
-            st.write(f"{pB}: raw={vB}, approx percentile≈{approx_pct(vB)}")
-
-# ---------- Ranking table ----------
-st.markdown("### Players Ranked by Z-Score")
-cols_for_table = ["Player", "Positions played", "Age", "Team", "Team within selected timeframe", "Minutes played", "Avg Z Score", "Rank"]
-z_ranking = (plot_data[cols_for_table].sort_values(by="Avg Z Score", ascending=False).reset_index(drop=True))
-z_ranking[["Team", "Team within selected timeframe"]] = z_ranking[["Team", "Team within selected timeframe"]].fillna("N/A")
-if "Age" in z_ranking:
-    z_ranking["Age"] = z_ranking["Age"].apply(lambda x: int(x) if pd.notnull(x) else x)
-z_ranking.index = np.arange(1, len(z_ranking) + 1)
-z_ranking.index.name = "Row"
-
-st.dataframe(z_ranking, use_container_width=True)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.10))
+    plt.tight_layout()
+    return fig
