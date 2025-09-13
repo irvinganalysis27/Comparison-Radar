@@ -688,16 +688,17 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     ax.set_xticklabels(labels, fontsize=10)
     
     ax.set_ylim(0, 100)
-    ax.set_yticks([20, 40, 60, 80])          # remove 100 to avoid the outer ring look
-    ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
-    ax.spines["polar"].set_visible(False)     # no circular border
+ax.set_yticks([20, 40, 60, 80])          # remove 100 to avoid the outer ring look
+ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
+ax.spines["polar"].set_visible(False)     # no circular border
 
 # give the plot more breathing room like the other app
 plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
 
-    # ----- Background wedges + HORIZONTAL outside labels
-        if labels_to_genre and genre_colors:
-        genre_seq = [labels_to_genre[l] for l in labels]
+# ----- Background wedges + HORIZONTAL outside labels -----
+if labels_to_genre and genre_colors:
+    genre_seq = [labels_to_genre[l] for l in labels]
+    ...
 
         # contiguous runs of same genre around the circle
         runs, run_start = [], 0
