@@ -677,6 +677,11 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     ax  = plt.subplot(111, polar=True)
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
 
     # Axes styling
     ax.set_xticks(angles[:-1])
