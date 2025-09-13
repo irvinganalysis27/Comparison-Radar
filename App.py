@@ -725,6 +725,7 @@ if labels_to_genre and genre_colors:
                     fontsize=12, fontweight="bold",
                     color=color, zorder=20, clip_on=False,
                     bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
+            
     # ----- Player polygons
     ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
     ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
