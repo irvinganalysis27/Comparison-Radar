@@ -696,7 +696,7 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
 plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
 
     # ----- Background wedges + HORIZONTAL outside labels
-    if labels_to_genre and genre_colors:
+        if labels_to_genre and genre_colors:
         genre_seq = [labels_to_genre[l] for l in labels]
 
         # contiguous runs of same genre around the circle
