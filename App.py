@@ -725,18 +725,18 @@ if labels_to_genre and genre_colors:
                     fontsize=12, fontweight="bold",
                     color=color, zorder=20, clip_on=False,
                     bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
-            
-    # ----- Player polygons
-    ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
-    ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
 
-    if B is not None:
-        ax.plot(angles, B, linewidth=2.5, color="#d62728", label=B_name, zorder=10)
-        ax.fill(angles, B, color="#d62728", alpha=0.20, zorder=10)
+# ----- Player polygons
+ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
+ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
 
-    ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.10))
-    plt.tight_layout()
-    return fig
+if B is not None:
+    ax.plot(angles, B, linewidth=2.5, color="#d62728", label=B_name, zorder=10)
+    ax.fill(angles, B, color="#d62728", alpha=0.20, zorder=10)
+
+ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.10))
+plt.tight_layout()
+return fig
 
 # ---------- Build labels & genre mapping ----------
 labels_clean = [m.replace(" per 90", "").replace(", %", " (%)") for m in metrics]
@@ -785,3 +785,15 @@ with st.expander("Percentile diagnostics"):
         if pB and (pB in df_group["Player"].values):
             vB = float(df_group.loc[df_group["Player"] == pB, d_metric].iloc[0])
             st.write(f"{pB}: raw={vB}, approx percentile≈{approx_pct(vB)}")
+
+# ---------- Ranking table ----------
+st.markdown("### Players Ranked by Z-Score")
+cols_for_table = ["Player", "Positions played", "Age", "Team", "Team within selected timeframe", "Minutes played", "Avg Z Score", "Rank"]
+z_ranking = (plot_data[cols_for_table].sort_values(by="Avg Z Score", ascending=False).reset_index(drop=True))
+z_ranking[["Team", "Team within selected timeframe"]] = z_ranking[["Team", "Team within selected timeframe"]].fillna("N/A")
+if "Age" in z_ranking:
+    z_ranking["Age"] = z_ranking["Age"].apply(lambda x: int(x) if pd.notnull(x) else x)
+z_ranking.index = np.arange(1, len(z_ranking) + 1)
+z_ranking.index.name = "Row"
+
+st.dataframe(z_ranking, use_container_width=True)
