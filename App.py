@@ -670,63 +670,61 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     N = len(labels)
     step = 2 * np.pi / N
 
-    # angles and closed polygons
-    angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
-    angles += angles[:1]
-    A = A_vals.tolist() + A_vals.tolist()[:1]
-    B = None
-    if B_vals is not None:
-        B = B_vals.tolist() + B_vals.tolist()[:1]
+# angles and closed polygons
+angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
+angles += angles[:1]
+A = A_vals.tolist() + A_vals.tolist()[:1]
+B = None
+if B_vals is not None:
+    B = B_vals.tolist() + B_vals.tolist()[:1]
 
-    fig = plt.figure(figsize=(10, 10))       # was (8.8, 8.8)
-    ax  = plt.subplot(111, polar=True)
-    ax.set_theta_offset(np.pi / 2)
-    ax.set_theta_direction(-1)
-    
-    # axes
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels, fontsize=10)
-    
-    ax.set_ylim(0, 100)
-ax.set_yticks([20, 40, 60, 80])          # remove 100 to avoid the outer ring look
+# figure + polar axes
+fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))  # was (8.8, 8.8)
+ax.set_theta_offset(np.pi / 2)
+ax.set_theta_direction(-1)
+
+# axes / ticks
+ax.set_xticks(angles[:-1])
+ax.set_xticklabels(labels, fontsize=10)
+
+ax.set_ylim(0, 100)
+ax.set_yticks([20, 40, 60, 80])                 # no tick at 100 -> no outer ring look
 ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
-ax.spines["polar"].set_visible(False)     # no circular border
+ax.spines["polar"].set_visible(False)           # hide circular border
 
 # give the plot more breathing room like the other app
 plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
 
 # ----- Background wedges + HORIZONTAL outside labels -----
 if labels_to_genre and genre_colors:
-    genre_seq = [labels_to_genre[l] for l in labels]
-    ...
+    genre_seq = [labels_to_genre[lbl] for lbl in labels]
 
-        # contiguous runs of same genre around the circle
-        runs, run_start = [], 0
-        for i in range(1, N):
-            if genre_seq[i] != genre_seq[i-1]:
-                runs.append((run_start, i-1, genre_seq[i-1]))
-                run_start = i
-        runs.append((run_start, N-1, genre_seq[-1]))
+    # contiguous runs of same genre around the circle
+    runs, run_start = [], 0
+    for i in range(1, N):
+        if genre_seq[i] != genre_seq[i - 1]:
+            runs.append((run_start, i - 1, genre_seq[i - 1]))
+            run_start = i
+    runs.append((run_start, N - 1, genre_seq[-1]))
 
-        for start_idx, end_idx, g in runs:
-            width  = (end_idx - start_idx + 1) * step
-            center = start_idx * step + width / 2.0
-            color  = genre_colors.get(g, "#999999")
+    for start_idx, end_idx, g in runs:
+        width  = (end_idx - start_idx + 1) * step
+        center = start_idx * step + width / 2.0
+        color  = genre_colors.get(g, "#999999")
 
-            # wedge fill (stays within 0..100)
-            ax.bar([center], [100], width=width, bottom=0,
-                   color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
+        # wedge fill (stays within 0..100)
+        ax.bar([center], [100], width=width, bottom=0,
+               color=color, alpha=genre_alpha, edgecolor=None, linewidth=0, zorder=0)
 
-            if show_genre_labels:
-                r_lbl = max(120, genre_label_radius)  # place outside the ring
-                # horizontal label (rotation=0) with small white box for contrast
-                ax.text(center, r_lbl, g,
-                        rotation=0, rotation_mode="anchor",
-                        ha="center", va="center",
-                        fontsize=12, fontweight="bold",
-                        color=color, zorder=20, clip_on=False,
-                        bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
-
+        if show_genre_labels:
+            r_lbl = max(120, genre_label_radius)  # place outside the ring
+            # horizontal label with small white box for contrast
+            ax.text(center, r_lbl, g,
+                    rotation=0, rotation_mode="anchor",
+                    ha="center", va="center",
+                    fontsize=12, fontweight="bold",
+                    color=color, zorder=20, clip_on=False,
+                    bbox=dict(facecolor="white", alpha=0.65, edgecolor="none", pad=1.5))
     # ----- Player polygons
     ax.plot(angles, A, linewidth=2.5, color="#1f77b4", label=A_name, zorder=10)
     ax.fill(angles, A, color="#1f77b4", alpha=0.20, zorder=10)
