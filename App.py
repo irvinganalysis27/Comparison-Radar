@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 
-st.set_page_config(page_title="Comparison Radar", layout="wide")
+st.set_page_config(page_title="Comparison Radar", layout="centered")
 
 # ------------------------ Basic password ------------------------
 PASSWORD = "cowboy"
@@ -662,7 +662,7 @@ GENRE_ALPHA = 0.08
 
 def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
                   labels_to_genre=None, genre_colors=None, genre_alpha=0.08,
-                  show_genre_labels=True, genre_label_radius=108):
+                  show_genre_labels=True, genre_label_radius=112):
     """
     Radar with lightly-shaded genre wedges and HORIZONTAL genre labels placed
     outside the plot so they don't overlap metric labels.
@@ -678,17 +678,22 @@ def radar_compare(labels, A_vals, B_vals=None, A_name="A", B_name="B",
     if B_vals is not None:
         B = B_vals.tolist() + B_vals.tolist()[:1]
 
-    fig = plt.figure(figsize=(8.8, 8.8))
+    fig = plt.figure(figsize=(10, 10))       # was (8.8, 8.8)
     ax  = plt.subplot(111, polar=True)
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
-
+    
     # axes
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylim(0, 100)  # <- give headroom for outside labels at r=108
-    ax.set_yticks([20, 40, 60, 80, 100])
-    ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
+    
+    ax.set_ylim(0, 100)
+    ax.set_yticks([20, 40, 60, 80])          # remove 100 to avoid the outer ring look
+    ax.set_yticklabels(["20", "40", "60", "80"], fontsize=9)
+    ax.spines["polar"].set_visible(False)     # no circular border
+
+# give the plot more breathing room like the other app
+plt.subplots_adjust(top=0.90, bottom=0.08, left=0.08, right=0.92)
 
     # ----- Background wedges + HORIZONTAL outside labels
     if labels_to_genre and genre_colors:
